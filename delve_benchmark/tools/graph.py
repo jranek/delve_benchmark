@@ -34,7 +34,7 @@ def get_igraph(W = None,
 
 def heat_kernel(dist = None,
                 radius = 3):
-    """Computes heat kernel for cell-cell similarity
+    """Transforms distances into weights using heat kernel
     Parameters
     dist: np.ndarray (default = None)
         distance matrix (dimensions = cells x k)
