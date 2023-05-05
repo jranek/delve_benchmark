@@ -35,7 +35,7 @@ conda activate venv_delve_benchmark
 If you'd like to evaluate feature selection methods using simulated data with [Splatter](https://genomebiology.biomedcentral.com/articles/10.1186/s13059-017-1305-0), you'll also need to install the R package. [Screp](https://scprep.readthedocs.io/en/stable/_modules/scprep/run/splatter.html) has a nice wrapper function you can use. 
 ```python
 import scprep
-scprep.run.install()
+scprep.run.splatter.install()
 ```
 
 ## Data access
@@ -86,7 +86,7 @@ This class provides two methods following instantiation, `select()` which can be
 Here we show you an example of how you can use the `fs` class to perform feature selection according to a feature selection strategy of interest. We provide 12 functions to perform feature selection. Alternatively, if you'd like to perform feature selection using another method of interest, feel free to add the function to the `feature_selection.py` script.
 
 * `delve_benchmark.tl.delve_fs` - [Feature selection for preserving biological trajectories in single-cell data]()
-* `delve_benchmark.tl.laplacian_score_fs` - [Laplacian Score for feature selection](https://dl.acm.org/doi/10.5555/2976248.2976312)
+* `delve_benchmark.tl.laplacian_score_fs` - [Laplacian score for feature selection](https://dl.acm.org/doi/10.5555/2976248.2976312)
 * `delve_benchmark.tl.neighborhood_variance_fs` - [SLICER: inferring branched, nonlinear cellular trajectories from single cell RNA-seq data](https://genomebiology.biomedcentral.com/articles/10.1186/s13059-016-0975-3)
 * `delve_benchmark.tl.mcfs_fs` - [Unsupervised feature selection for multi-cluster data](https://dl.acm.org/doi/10.1145/1835804.1835848)
 * `delve_benchmark.tl.scmer_fs` - [Single-cell manifold-preserving feature selection for detecting rare cell populations](https://www.nature.com/articles/s43588-021-00070-7)
