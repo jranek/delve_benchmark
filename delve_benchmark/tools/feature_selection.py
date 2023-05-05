@@ -839,7 +839,7 @@ def random_forest(adata = None,
     else:
         return scores, feature_importances_df
 
-def seed_features(adata = None, #to fix 
+def seed_features(adata = None, 
                 k: int = 10, 
                 num_subsamples: int = 1000,
                 n_clusters: int = 5,
