@@ -33,5 +33,4 @@ dependencies:
     - pip:
         - hotspotsc==1.1.1
         - scmer==0.1.0a3
-        - netrd==0.0.1
         - gseapy==1.0.4

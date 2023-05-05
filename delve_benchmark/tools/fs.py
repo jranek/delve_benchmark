@@ -163,11 +163,10 @@ class fs(BaseEstimator):
             self.eval_method_params = {}
         
     def evaluate_select(self):
-
         if (self.eval_method.__name__ == 'svm') or (self.eval_method.__name__ == 'svm_svr'): 
             # if evaluation is classification or regression, then call evaluation function directly. In this case, feature selection will be performed inside the test/train split
             sys.stdout.write('performing evaluation: {}'.format(self.eval_method.__name__)+'\n')
-            self.scores_df = self._evaluate()
+            self.predicted_features, self.scores_df = self._evaluate()
         
         else:
             # for all other evaluation criteria: First: perform feature selection, Second: perform evaluation

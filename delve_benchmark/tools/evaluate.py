@@ -1,7 +1,6 @@
 import numpy as np
 import pandas as pd
 import scipy
-import netrd
 import networkx as nx
 import scanpy as sc
 from scipy.sparse import *
@@ -141,24 +140,6 @@ def cluster(adata = None,
     scores.index = len(scores)*['NMI']
 
     return scores
-
-def compute_jaccard_distance(G1 = None,
-                            G2 = None):
-    """Computes the Jaccard distance between two graphs (e..g predicted trajectory graph from PAGA and ground truth reference)
-    Parameters
-        G1: networkx Graph object
-            predicted trajectory graph from PAGA
-        G2: networkx Graph object
-            ground truth reference graph
-    ----------
-    Returns
-        jacc_dist
-            jaccard distance between two graphs
-    ----------
-    """
-    jacc_op = netrd.distance.JaccardDistance()
-    jacc_dist = jacc_op(G1 = G1, G2 = G2)
-    return jacc_dist
 
 def perform_dpt(adata = None,
                 k: int = 10,
@@ -769,6 +750,8 @@ def svm(adata = None,
     ----------
 
     Returns
+    predicted_features: np.ndarray
+        array of features following feature selection from last fold
     scores: pd.core.frame.DataFrame
         dataframe containing the accuracy scores following classification
     ----------
@@ -816,7 +799,7 @@ def svm(adata = None,
         
     scores = pd.DataFrame(np.asarray(scores), index = np.shape(scores)[0]*['accuracy'])
 
-    return scores
+    return predicted_features, scores
 
 def svm_svr(adata = None,
             X = None,
@@ -858,6 +841,8 @@ def svm_svr(adata = None,
     ----------
 
     Returns
+    predicted_features: np.ndarray
+        array of features following feature selection from last fold
     scores: pd.core.frame.DataFrame
         dataframe containing the MSE following regression
     ----------
@@ -905,4 +890,4 @@ def svm_svr(adata = None,
         
     scores = pd.DataFrame(np.asarray(scores), index = np.shape(scores)[0]*['mean_squared_error'])
 
-    return scores
+    return predicted_features, scores
