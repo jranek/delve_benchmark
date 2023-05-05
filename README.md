@@ -32,7 +32,7 @@ Once the environment is created, you can activate it by,
 conda activate venv_delve_benchmark
 ```
 
-If you'd like to evaluate feature selection methods using simulated data with [Splatter](https://genomebiology.biomedcentral.com/articles/10.1186/s13059-017-1305-0), you'll also need to install the R package. [Screp](https://scprep.readthedocs.io/en/stable/_modules/scprep/run/splatter.html) has a nice wrapper function you can use. 
+If you'd like to evaluate feature selection methods using simulated data with [Splatter](https://genomebiology.biomedcentral.com/articles/10.1186/s13059-017-1305-0), you'll also need to install the R package. [Scprep](https://scprep.readthedocs.io/en/stable/_modules/scprep/run/splatter.html) has a nice wrapper function you can use. 
 ```python
 import scprep
 scprep.run.splatter.install()
