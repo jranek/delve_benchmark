@@ -607,15 +607,12 @@ def neighborhood_variance_fs(adata = None,
 
     return predicted_features
 
-def neighborhood_variance_main(X = None,
-                            feature_names = None):
+def neighborhood_variance_main(X = None):
     """Performs neighborhood variance feature selection
 
     Parameters
     X: np.ndarray (default = None)
         preprocessed single-cell data (dimensions = cells x features)
-    feature_names: list (default = None)
-        list containing feature names
     ----------
 
     Returns
@@ -626,7 +623,7 @@ def neighborhood_variance_main(X = None,
     -----         
     """     
     sample_variance = np.var(X, axis = 0) #sample variance of features across all cells dimensions = nfeatures
-    A, g = min_conn_knn(X = X, feature_names = feature_names)
+    A, g = min_conn_knn(X = X)
     nv = neighborhood_variance(X = X, A = A, g = g)
 
     nvr = np.divide(sample_variance, nv)
