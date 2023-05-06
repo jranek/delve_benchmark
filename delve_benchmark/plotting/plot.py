@@ -63,7 +63,7 @@ def plot_seed(adata_directory = None,
         delta_mean_annot_melt[labels_key] = pd.Categorical(delta_mean_annot_melt[labels_key], ordered=True, categories = m_order)
         delta_mean_annot_melt.sort_values(labels_key, inplace=True)
 
-        g = sns.lineplot(labels_key, 'value', data = delta_mean_annot_melt, ax = ax, color = colors_dict[clusters[i]], estimator = 'mean', ci = 'sd',marker='o')
+        g = sns.lineplot(x = labels_key, y = 'value', data = delta_mean_annot_melt, ax = ax, color = colors_dict[clusters[i]], estimator = 'mean', ci = 'sd',marker='o')
         g.set_xticklabels(m_order, rotation=45, horizontalalignment='right')
         g.tick_params(labelsize=16)
         g.set_ylabel('mean pairwise $\Delta$ expression', fontsize = 16)
@@ -80,7 +80,7 @@ def plot_seed(adata_directory = None,
     sc.tl.umap(dyn_adata)
 
     _, ax = plt.subplots(figsize=(5, 4.5))
-    g = sns.scatterplot(dyn_adata.obsm['X_umap'][:, 0], dyn_adata.obsm['X_umap'][:, 1], hue = dyn_adata.obs['clusters'].values, palette = colors_dict, ax = ax, s = 50)
+    g = sns.scatterplot(x = dyn_adata.obsm['X_umap'][:, 0], y = dyn_adata.obsm['X_umap'][:, 1], hue = dyn_adata.obs['clusters'].values, palette = colors_dict, ax = ax, s = 50)
     g.tick_params(labelsize=14)
     g.set_xticks([])
     g.set_yticks([])
@@ -165,9 +165,9 @@ def plot_phate(adata_directory = None,
         X_subset = df_X.iloc[:, np.isin(df_X.columns, method_df.loc[:, methods_arr[0]])]
         X_phate = op.fit_transform(np.asarray(X_subset))
         if cmap is not None:
-            g = sns.scatterplot(X_phate[:, 0], X_phate[:, 1], c = y, ax = axes, s = 10, linewidth = 0, cmap = cmap)
+            g = sns.scatterplot(x = X_phate[:, 0], y = X_phate[:, 1], c = y, ax = axes, s = 10, linewidth = 0, cmap = cmap)
         else:
-            g = sns.scatterplot(X_phate[:, 0], X_phate[:, 1], hue = pd.Series(y), ax = axes, s = 10, linewidth = 0, palette = colors_dict, hue_order = hue_order)
+            g = sns.scatterplot(x = X_phate[:, 0], y = X_phate[:, 1], hue = pd.Series(y), ax = axes, s = 10, linewidth = 0, palette = colors_dict, hue_order = hue_order)
         if cmap is not None:
             norm = plt.Normalize(adata.obs[labels_key].min(), adata.obs[labels_key].max())
             sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
@@ -187,7 +187,7 @@ def plot_phate(adata_directory = None,
         for i, ax in zip(range(0, len(titles)), axes.flat):
             X_subset = df_X.iloc[:, np.isin(df_X.columns, method_df.loc[:, methods_arr[i]])]
             X_phate = op.fit_transform(np.asarray(X_subset))
-            g = sns.scatterplot(X_phate[:, 0], X_phate[:, 1],  hue = pd.Series(y), ax = ax, s = 10, linewidth=0, palette = colors_dict, hue_order = hue_order, cmap = cmap)
+            g = sns.scatterplot(x = X_phate[:, 0], y = X_phate[:, 1],  hue = pd.Series(y), ax = ax, s = 10, linewidth=0, palette = colors_dict, hue_order = hue_order, cmap = cmap)
             g.tick_params(labelsize=14)
             g.set_xticks([])
             g.set_yticks([])
