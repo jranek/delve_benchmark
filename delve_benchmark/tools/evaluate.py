@@ -368,7 +368,7 @@ def gene_ontology(gene_list = None,
     """Performs gene set enrichment analysis using Enrichr https://bmcbioinformatics.biomedcentral.com/articles/10.1186/1471-2105-14-128 and gseapy https://gseapy.readthedocs.io/en/latest/introduction.html
     Parameters
         gene_list: list (default = None)
-            annotated data object containing single-cell data (dimensions = cells x features)
+            list of genes
         gene_sets: list (default = None)
             list of gene sets to consider
         organism: str (default = 'mouse')
