@@ -8,7 +8,7 @@ DELVE benchmark is python package designed for evaluating feature selection meth
   <img src="pipeline.png" />
 </p>
 
-If you'd like to perform feature selection using DELVE, please see the associated repo: https://github.com/jranek/delve. Alternatively, if you'd like to evaluate feature selection methods on trajectory preservation tasks, please see below.
+If you'd like to perform feature selection using DELVE, please see the associated repo: https://github.com/jranek/delve. Alternatively, if you'd like to evaluate feature selection methods on trajectory preservation tasks or reproduce the analysis from the paper, please see below.
 
 ## Installation
 You can clone the git repository by, 
@@ -22,7 +22,7 @@ cd delve_benchmark
 
 ## Dependencies 
 
-Given that there are a number of python packages for benchmarking evaluation, we recommend that you create a conda environment using the yml file.
+Given that there are a number of python packages for benchmarking evaluation, we recommend that you create a conda environment using the yml file. The installation should take less than one minute.
 ```
 conda env create -f venv_delve_benchmark.yml
 ```
@@ -35,7 +35,7 @@ conda activate venv_delve_benchmark
 If you'd like to evaluate feature selection methods using simulated data with [Splatter](https://genomebiology.biomedcentral.com/articles/10.1186/s13059-017-1305-0), you'll also need to install the R package. [Scprep](https://scprep.readthedocs.io/en/stable/_modules/scprep/run/splatter.html) has a nice wrapper function you can use. 
 ```python
 import scprep
-scprep.run.splatter.install()
+scprep.run.splatter.install() #v1.18.2
 ```
 
 ## Data access
