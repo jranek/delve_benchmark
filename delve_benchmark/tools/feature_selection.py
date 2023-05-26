@@ -338,7 +338,7 @@ def _annotate_clusters(mapping_df = None,
 
     modules = pd.Categorical(pd.Series(mapping_df.loc[:, random_state_idx].astype('str')).map(cats))
     modules = pd.DataFrame(modules, index = mapping_df.index, columns = ['cluster_id'])
-
+    modules[~np.isin(modules.index, dyn_feats)] = 'static'
     return modules
 
 def scmer_fs(adata = None,
