@@ -5,24 +5,24 @@ DELVE benchmark is python package designed for evaluating feature selection meth
 [DELVE](https://github.com/jranek/delve) is an unsupervised feature selection method for identifying a representative subset of dynamically-expressed molecular features that recapitulate cellular trajectories from single-cell data (e.g. single-cell RNA sequencing, protein iterative immunofluorescence imaging). In contrast to previous work, DELVE uses a bottom-up approach to mitigate the effect of unwanted sources of feature variation confounding inference, and instead models cell states from dynamic feature modules that constitute core regulatory complexes. For more details on the method, please read the associated preprint: [Ranek JS, Stallaert W, Milner J, Stanley N, and Purvis JE. Feature selection for preserving biological trajectories in single-cell data. _bioRxiv_. 2023](https://www.biorxiv.org/content/10.1101/2023.05.09.540043v1).
 
 <p>
-  <img src="pipeline.png" />
+  <img src="https://github.com/jranek/delve_benchmark/blob/main/pipeline.png?raw=True" />
 </p>
 
 If you'd like to perform feature selection using DELVE, please see the associated repo: https://github.com/jranek/delve. Alternatively, if you'd like to evaluate feature selection methods on trajectory preservation tasks or reproduce the analysis from the paper, please see below.
 
 ## Installation
-You can clone the git repository by, 
+You can install the package and necessary dependencies with `pip` by,
+```
+pip install delve-benchmark
+```
+
+Alternatively, you can clone the git repository and install the necessary dependencies using the provided yml file. First clone the repository by, 
 ```
 git clone https://github.com/jranek/delve_benchmark.git
 ```
-Once you've cloned the repository, please change your working directory as, 
-```
-cd delve_benchmark
-```
 
-## Dependencies 
+You can then create the conda environment using the provided yml file. 
 
-Given that there are a number of python packages for benchmarking evaluation, we recommend that you create a conda environment using the yml file. The installation should take less than one minute.
 ```
 conda env create -f venv_delve_benchmark.yml
 ```
@@ -85,7 +85,7 @@ This class provides two methods following instantiation, `select()` which can be
 ### Perform feature selection
 Here we show you an example of how you can use the `fs` class to perform feature selection according to a feature selection strategy of interest. We provide 12 functions to perform feature selection. Alternatively, if you'd like to perform feature selection using another method of interest, feel free to add the function to the `feature_selection.py` script.
 
-* `delve_benchmark.tl.delve_fs` - [Feature selection for preserving biological trajectories in single-cell data]()
+* `delve_benchmark.tl.run_delve_fs` - [Feature selection for preserving biological trajectories in single-cell data](https://www.biorxiv.org/content/10.1101/2023.05.09.540043v1)
 * `delve_benchmark.tl.laplacian_score_fs` - [Laplacian score for feature selection](https://dl.acm.org/doi/10.5555/2976248.2976312)
 * `delve_benchmark.tl.neighborhood_variance_fs` - [SLICER: inferring branched, nonlinear cellular trajectories from single cell RNA-seq data](https://genomebiology.biomedcentral.com/articles/10.1186/s13059-016-0975-3)
 * `delve_benchmark.tl.mcfs_fs` - [Unsupervised feature selection for multi-cluster data](https://dl.acm.org/doi/10.1145/1835804.1835848)
@@ -109,7 +109,7 @@ import os
 adata = anndata.read_h5ad(os.path.join('data', 'adata_RPE.h5ad'))
 
 # Example performing feature selection with DELVE
-fs = delve_benchmark.tl.fs(adata = adata, fs_method = delve_benchmark.tl.delve_fs, fs_method_params = {'num_subsamples': 1000, 'n_clusters': 5, 'k': 10, 'n_random_state': 10})
+fs = delve_benchmark.tl.fs(adata = adata, fs_method = delve_benchmark.tl.run_delve_fs, fs_method_params = {'num_subsamples': 1000, 'n_clusters': 5, 'k': 10, 'n_random_state': 10})
 predicted_features = fs.select()
 
 # Example performing feature selection with the Laplacian Score
@@ -130,7 +130,7 @@ To perform evaluation, simply specify the feature selection method, feature sele
 
 ```python
 # Example evaluating DELVE feature selection performance on preserving cell types using SVM classification
-fs = delve_benchmark.tl.fs(adata = adata, fs_method = delve_benchmark.tl.delve_fs, fs_method_params = {'num_subsamples': 1000, 'n_clusters': 5, 'k': 10, 'n_random_state': 10},
+fs = delve_benchmark.tl.fs(adata = adata, fs_method = delve_benchmark.tl.run_delve_fs, fs_method_params = {'num_subsamples': 1000, 'n_clusters': 5, 'k': 10, 'n_random_state': 10},
                           eval_method = delve_benchmark.tl.svm, eval_method_params = {'n_splits': 10}, labels_key = 'phase', feature_threshold = 30)
 predicted_features, scores = fs.evaluate_select()
 

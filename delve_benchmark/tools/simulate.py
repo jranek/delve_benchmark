@@ -343,7 +343,7 @@ def sim_binom(adata = None,
     Parameters
     adata: anndata.AnnData (default = None)
         annotated data object containing single-cell data (dimensions = cells x features)
-    dropout_prob: np.float (default = 0)
+    dropout_prob: float (default = 0)
         dropout probability
     random_state: int (default = 0)
         random seed

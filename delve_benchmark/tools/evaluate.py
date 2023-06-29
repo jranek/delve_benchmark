@@ -207,7 +207,7 @@ def compute_de(adata,
 
     return de_df
 
-def GAM_pt(pse_t, expr, smooth = 'BSplines', df = 5, degree = 3, family = sm.families.NegativeBinomial()):
+def GAM_pt(pse_t, expr, smooth = 'BSplines', df = 5, degree = 3, family = sm.families.NegativeBinomial(alpha = 1.0)):
     """
     ~~ The following code was accessed from CellPath: https://github.com/PeterZZQ/CellPath ~~
     Fit a Generalized Additive Model with the exog to be the pseudo-time. The likelihood ratio test is performed 
@@ -306,7 +306,7 @@ def de_analy(adata, pse_t, p_val_t = 0.05, verbose = False, distri = "neg-binomi
             gene_dynamic = np.squeeze(adata.X[:,idx])
             pse_t = np.arange(gene_dynamic.shape[0])[:,None]
             if distri == "neg-binomial":
-                gene_pred, gene_null, p_val = GAM_pt(pse_t, gene_dynamic, smooth='BSplines', df = 4, degree = 3, family=sm.families.NegativeBinomial())
+                gene_pred, gene_null, p_val = GAM_pt(pse_t, gene_dynamic, smooth='BSplines', df = 4, degree = 3, family=sm.families.NegativeBinomial(alpha=1.0))
             
             elif distri == "log-normal":                
                 gene_pred, gene_null, p_val = GAM_pt(pse_t, gene_dynamic, smooth='BSplines', df = 4, degree = 3, family=sm.families.Gaussian(link = sm.families.links.log()))
@@ -590,7 +590,7 @@ def compute_string_interaction(feats):
     df = pd.DataFrame(data[1:-1], columns = data[0]) 
     # dataframe with the preferred names of the two proteins and the score of the interaction
     interactions = df[['preferredName_A', 'preferredName_B', 'escore']]
-    interactions.loc[:, 'escore'] =  pd.DataFrame(interactions.loc[:, 'escore']).astype(np.float)
+    interactions.loc[:, 'escore'] =  pd.DataFrame(interactions.loc[:, 'escore']).astype(float)
 
     interactions = interactions[np.isin(interactions.loc[:, 'preferredName_A'].values, feats)]
     interactions = interactions[np.isin(interactions.loc[:, 'preferredName_B'].values, feats)]
@@ -853,7 +853,7 @@ def svm_svr(adata = None,
             X = X.todense()
         feature_names = np.asarray(adata.var_names)
     if labels is None:
-        y = np.asarray(adata.obs[labels_key].values).astype('float')
+        y = np.asarray(adata.obs[labels_key].values).astype(float)
     else:
         y = labels.copy()
 

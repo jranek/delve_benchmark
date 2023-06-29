@@ -31,7 +31,7 @@ class fs(BaseEstimator):
             array containing cell type labels if using random forest classification for evaluation
         fs_method: function (default = None)
             function housed in the delve_benchmark.tl.feature_selection script that specifies the feature selection strategy to perform. Can be one of the following (or you may provide your own):
-                delve_benchmark.tl.delve_fs
+                delve_benchmark.tl.run_delve_fs
                 delve_benchmark.tl.random_forest
                 delve_benchmark.tl.laplacian_score_fs
                 delve_benchmark.tl.neighborhood_variance_fs
@@ -45,7 +45,7 @@ class fs(BaseEstimator):
                 delve_benchmark.tl.random_features
         fs_method_params: dictionary (default = None)
             dictionary referring to the feature selection method hyperparameters. For more information on method-specific hyperparameters, see the delve_benchmark.tl.feature_selection script for the method of interest. Can be:
-                delve_benchmark.tl.delve_fs example: {'num_subsamples': 1000, 'n_clusters': 5, 'k': 10, 'n_random_state': 10}
+                delve_benchmark.tl.run_delve_fs example: {'num_subsamples': 1000, 'n_clusters': 5, 'k': 10, 'n_random_state': 10}
                 delve_benchmark.tl.random_forest example: {'n_splits': 10, 'labels_key': 'phase'}
                 delve_benchmark.tl.laplacian_score_fs example: {'k': 10}
                 delve_benchmark.tl.neighborhood_variance_fs example: None
@@ -95,7 +95,7 @@ class fs(BaseEstimator):
         ----------------------------
         1. Example for DELVE feature selection:
 
-            fs = delve_benchmark.tl.fs(adata = adata, X = adata.X, feature_names = adata.var_names, fs_method = delve_benchmark.tl.delve_fs, fs_method_params = {'num_subsamples': 1000, 'n_clusters': 5, 'k': 10, 'n_random_state': 10, 'return_modules': True})
+            fs = delve_benchmark.tl.fs(adata = adata, X = adata.X, feature_names = adata.var_names, fs_method = delve_benchmark.tl.run_delve_fs, fs_method_params = {'num_subsamples': 1000, 'n_clusters': 5, 'k': 10, 'n_random_state': 10, 'return_modules': True})
             delta_mean, modules, predicted_features = fs.select()
         
         2. Example for laplacian score feature selection:
@@ -105,7 +105,7 @@ class fs(BaseEstimator):
 
         2. Example for SVM classification following feature selection with DELVE:
 
-            fs = delve_benchmark.tl.fs(adata = adata, X = adata.X, feature_names = adata.var_names, fs_method = delve_benchmark.tl.delve_fs,
+            fs = delve_benchmark.tl.fs(adata = adata, X = adata.X, feature_names = adata.var_names, fs_method = delve_benchmark.tl.run_delve_fs,
                             fs_method_params = {'num_subsamples': 1000, 'n_clusters': 5, 'k': 10, 'n_random_state': 10},
                             eval_method = delve_benchmark.tl.svm, eval_method_params = {'n_splits': 10}, labels_key = 'phase', feature_threshold = 30)
             predicted_features, scores = fs.evaluate_select()
