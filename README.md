@@ -15,6 +15,10 @@ You can clone the git repository by,
 ```
 git clone https://github.com/jranek/delve_benchmark.git
 ```
+Then change the working directory as, 
+```
+cd delve_benchmark
+```
 
 Given that there are a number of python packages for benchmarking evaluation, we recommend that you create a conda environment using the provided yml file.
 
