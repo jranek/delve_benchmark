@@ -11,17 +11,12 @@ DELVE benchmark is python package designed for evaluating feature selection meth
 If you'd like to perform feature selection using DELVE, please see the associated repo: https://github.com/jranek/delve. Alternatively, if you'd like to evaluate feature selection methods on trajectory preservation tasks or reproduce the analysis from the paper, please see below.
 
 ## Installation
-You can install the package and necessary dependencies with `pip` by,
-```
-pip install delve-benchmark
-```
-
-Alternatively, you can clone the git repository and install the necessary dependencies using the provided yml file. First clone the repository by, 
+You can clone the git repository by, 
 ```
 git clone https://github.com/jranek/delve_benchmark.git
 ```
 
-You can then create the conda environment using the provided yml file. 
+Given that there are a number of python packages for benchmarking evaluation, we recommend that you create a conda environment using the provided yml file.
 
 ```
 conda env create -f venv_delve_benchmark.yml
