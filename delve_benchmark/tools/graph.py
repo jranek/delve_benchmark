@@ -54,6 +54,7 @@ def construct_affinity(X = None,
                         k: int = 10,
                         radius: int = 3,
                         n_pcs = None,
+                        random_state: int = 0, 
                         n_jobs: int = -1):
     """Computes between cell affinity knn graph using heat kernel
     Parameters
@@ -75,7 +76,7 @@ def construct_affinity(X = None,
     """
     if n_pcs is not None:
         n_comp = min(n_pcs, X.shape[1])
-        pca_op = PCA(n_components=n_comp, random_state = 0)
+        pca_op = PCA(n_components=n_comp, random_state = random_state)
         X_ = pca_op.fit_transform(X)
     else:
         X_ = X.copy()

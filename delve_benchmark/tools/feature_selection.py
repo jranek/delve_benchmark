@@ -100,7 +100,7 @@ def scmer_fs(adata = None,
         dataframe containing the features following selection and their associated weight (dimensions = features x 1)
     ----------
     """
-    sc.tl.pca(adata, n_comps = n_pcs, svd_solver = 'arpack')
+    sc.tl.pca(adata, n_comps = n_pcs, svd_solver = 'arpack', random_state = random_state)
     sc.pp.neighbors(adata, knn = k)
     sc.tl.umap(adata)
 
@@ -115,6 +115,7 @@ def scmer_fs(adata = None,
 def hotspot_fs(adata = None,
             k: int  = 10,
             n_pcs: int = 50,
+            random_state: int = 0,
             **args):
     """Ranks features using hotspot: https://www.sciencedirect.com/science/article/pii/S2405471221001149
     Parameters
@@ -132,7 +133,7 @@ def hotspot_fs(adata = None,
     """
     X, _, _ = delve_benchmark.pp.parse_input(adata)
     adata.layers['data'] = X.copy()
-    sc.tl.pca(adata, n_comps = n_pcs, svd_solver = 'arpack')
+    sc.tl.pca(adata, n_comps = n_pcs, svd_solver = 'arpack', random_state = random_state)
 
     hs = hotspot.Hotspot(adata,
                         layer_key="data",
