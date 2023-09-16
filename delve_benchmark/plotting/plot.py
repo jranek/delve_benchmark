@@ -13,26 +13,30 @@ from sklearn.preprocessing import MinMaxScaler
 import anndata
 import glob
 import delve_benchmark
+from matplotlib.colors import to_rgba
+from matplotlib.cm import ScalarMappable
 
 def plot_seed(adata_directory = None,
             feature_directory = None, 
             adata_name = None,
             labels_key = 'phase',
-            save_dir = 'figures',
+            save_directory = 'figures',
             filename_save = None,
             trial = 0, 
             m_order = ['G0', 'G1', 'S', 'G2', 'M'],
             ylim = [-0.25,0.25],
-            reorder = None):
-    #plots feature modules (e.g. figure 4a, figure 5a-c) 
-    sc.set_figure_params(fontsize=18, figsize=None, color_map=None, format='pdf', facecolor=None, transparent=False, ipython_format='png2x')
-    sns.set_style('ticks')
-    colors_dict = {'static': '#C9C9C9',
+            colors_dict = {'static': '#C9C9C9',
                 'dynamic': '#B46CDA',
                 'dynamic 0': '#B46CDA',
                 'dynamic 1': '#78CE8B',
                 'dynamic 2': '#FF8595',
-                'dynamic 3': '#1885F2'}
+                'dynamic 3': '#1885F2',
+                'dynamic 4': '#D78F09',
+                'dynamic 5': '#665263'},
+            reorder = None):
+    #plots feature modules (e.g. figure 4a, figure 5a-c) 
+    sc.set_figure_params(fontsize=18, figsize=None, color_map=None, format='pdf', facecolor=None, transparent=False, ipython_format='png2x')
+    sns.set_style('ticks')
 
     adata = sc.read(os.path.join(adata_directory, adata_name+'.h5ad'))
     adata.obs[labels_key] = adata.obs[labels_key].cat.reorder_categories(m_order)
@@ -49,7 +53,8 @@ def plot_seed(adata_directory = None,
 
     #plot heatmap of expression ordered by labels
     ax = sc.pl.matrixplot(adata, dyn_feats, groupby = labels_key, swap_axes=False, cmap='Blues', standard_scale = 'var', colorbar_title='scaled\nexpression', save = filename_save+'.pdf')
-    os.rename(os.path.join('figures', 'matrixplot_'+filename_save + '.pdf'), os.path.join(save_dir, 'matrixplot_'+filename_save + '.pdf'))
+    delve_benchmark.pp.make_directory(save_directory)
+    os.rename(os.path.join('figures', 'matrixplot_'+filename_save + '.pdf'), os.path.join(save_directory, 'matrixplot_'+filename_save + '.pdf'))
 
     #plot dynamic time traces ordered by labels
     clusters = np.unique(modules['cluster_id'].values)
@@ -71,7 +76,7 @@ def plot_seed(adata_directory = None,
         g.set_title(f'{clusters[i]}', fontsize = 16)
         g.set_ylim(ylim[0], ylim[1])
 
-    plt.savefig(os.path.join(save_dir, filename_save + '_seed_dynamics.pdf'), bbox_inches = "tight")
+    plt.savefig(os.path.join(save_directory, filename_save + '_seed_dynamics.pdf'), bbox_inches = "tight")
 
     #plot UMAP of features colored according to DELVE module assignment
     dyn_adata = anndata.AnnData(delta_mean.transpose())
@@ -87,11 +92,17 @@ def plot_seed(adata_directory = None,
     g.set_xlabel('UMAP 1', fontsize = 14)
     g.set_ylabel('UMAP 2', fontsize = 14)
     ax.legend(loc = 'upper right')
-    plt.savefig(os.path.join(save_dir, filename_save+'_clusters_umap.pdf'), bbox_inches = "tight")
+    plt.savefig(os.path.join(save_directory, filename_save+'_clusters_umap.pdf'), bbox_inches = "tight")
 
 def plot_string_G(modules = None,
                     colors_dict = {'static': '#C9C9C9', 'dynamic': '#B46CDA', 'dynamic 0': '#B46CDA', 'dynamic 1': '#78CE8B', 'dynamic 2': '#FF8595', 'dynamic 3': '#1885F2'}, 
+                    figsize = (8,10),
+                    node_size = 150,
+                    font_size = '12',
+                    species = '10090',
+                    with_labels = True,
                     module_id = None,
+                    save_directory = None,
                     filename_save = None):
     """Plots STRING networks using features within a DELVE module (see figure 5b)
     Parameters
@@ -112,17 +123,22 @@ def plot_string_G(modules = None,
     colors_dict = dict((k, colors_dict[k]) for k in clusters if k in colors_dict)
 
     selected_feats = list(modules.index[modules['cluster_id'] == module_id])
-    interactions = delve_benchmark.tl.compute_string_interaction(selected_feats)
+    interactions = delve_benchmark.tl.compute_string_interaction(selected_feats, species = species)
     G = delve_benchmark.tl.compute_G(interactions)
 
     node_colors = pd.Series(modules['cluster_id']).map(colors_dict)
 
     pos = nx.spring_layout(G) # position the nodes using the spring layout
-    plt.figure(figsize=(8,6)) 
-    nx.draw_networkx(G, node_size = 100, node_color = [node_colors.loc[node] for node in G.nodes()], edge_color = '#B8B8B8', font_weight='semibold',font_size='14', width = 1.5,with_labels=True)
+    plt.figure(figsize = figsize) 
+    nx.draw_networkx(G, node_size = node_size, node_color = [node_colors.loc[node] for node in G.nodes()], edge_color = '#B8B8B8', font_weight='semibold',font_size=font_size, width = 1.5, with_labels = with_labels)
     plt.axis('off')
-    if filename_save is not None:
-        plt.savefig(filename_save+'.pdf', bbox_inches = 'tight')
+    
+    if save_directory is not None:
+        delve_benchmark.pp.make_directory(save_directory)
+        if filename_save is not None:
+            plt.savefig(os.path.join(save_directory, filename_save+'.pdf'), bbox_inches = 'tight')
+        else:
+            plt.savefig(os.path.join(save_directory, module_id+'.pdf'), bbox_inches = 'tight')
 
 def plot_phate(adata_directory = None,
                 feature_directory = None,
@@ -329,10 +345,15 @@ def plot_metrics(all_results = None,
         else:
             all_melt = all_results[i].melt()
             all_melt['variable'] = [i.split('_trial')[0] for i in all_melt['variable']]  
+            if metrics[i] == 'svm_svr':
+                print(all_melt['value'])
+                all_melt['value'] = np.sqrt(all_melt['value']) #convert to RMSE
+                print(all_melt['value'])
+
             g = sns.boxplot(x='variable', y='value', data=all_melt, linewidth = 1,fliersize=0, width = 0.6, ax = ax, palette = colors_dict, order = m_order)
 
             g = sns.stripplot(x='variable', y='value', data=all_melt, linewidth = 0.8, 
-                                size=5, edgecolor="black", jitter = True, dodge = True, ax = ax, palette=colors_dict, order = m_order)
+                                size=5, edgecolor="black", jitter = True, ax = ax, palette=colors_dict, order = m_order)
 
             g.set_xticklabels(xticklabels, rotation=45, horizontalalignment='right')
             g.tick_params(labelsize=18)
@@ -450,3 +471,52 @@ def plot_ranking(mean_metrics_df, save_dir, filename_save, palette):
     g.set(xlabel = None)
     g.legend([],[], frameon=False)
     plt.savefig(os.path.join(save_dir, filename_save + '_mean_ranking.pdf'), bbox_inches = "tight")
+
+def generate_colors(cmap="viridis", n_colors=6, alpha=.4):
+    """Generate colors from matplotlib colormap; pass list to use exact colors"""
+    if not isinstance(n_colors, int) or (n_colors < 2) or (n_colors > 6):
+        raise ValueError("n_colors must be an integer between 2 and 6")
+    if isinstance(cmap, list):
+        colors = [to_rgba(color, alpha=alpha) for color in cmap]
+    else:
+        scalar_mappable = ScalarMappable(cmap=cmap)
+        colors = scalar_mappable.to_rgba(range(n_colors), alpha=alpha).tolist()
+    return colors[:n_colors]
+
+def plot_GO(gene_lists_df,
+            gene_sets = ['GO_Biological_Process_2023'],
+            organism = 'mouse',
+            xlim = [0, 8],
+            n_select = 15, 
+            color = None,
+            save_directory = None,
+            filename_save = None):
+
+    df_agg = pd.DataFrame()
+    for root_cell in gene_lists_df.columns: #only showing the first for visual representation
+        gene_lists = gene_lists_df.loc[:, root_cell][~gene_lists_df.loc[:, root_cell].isna()].sort_values(ascending = True).index.tolist()
+        go =  delve_benchmark.tl.gene_ontology(gene_list = gene_lists, gene_sets = gene_sets, organism = organism)
+
+        df = go.loc[:, ['Term', 'Adjusted P-value']].copy()
+        df = df.sort_values(by = 'Adjusted P-value', ascending=True)
+        df['-log10(Adjusted P-value)'] = -np.log10(df['Adjusted P-value'])
+        df['Term'] = [i.split(' (GO')[0] for i in df['Term']]
+        df['root_cell'] = root_cell
+        df_agg = pd.concat([df[:n_select], df_agg], axis = 0)
+
+    _, axes = plt.subplots(1, 1, figsize = (6,6), gridspec_kw={'hspace': 0.4, 'wspace': 0.3, 'bottom':0.15})
+    # print(df_agg.groupby('Term').mean().sort_values(by = '-log10(Adjusted P-value)', ascending=False))
+    g = sns.barplot(y = 'Term', x = '-log10(Adjusted P-value)', data = df_agg, color = color, alpha = 0.4, order = df_agg.groupby('Term').mean().sort_values(by = '-log10(Adjusted P-value)', ascending=False).index[:15], ci = 'sd', capsize = 0.3, errcolor = 'black', errwidth=1, axes = axes)
+    g.tick_params(labelsize=16)
+    g.set_xlabel('-log10(Adjusted P-value)', fontsize = 20)
+    g.set_ylabel('GO term', fontsize = 20)
+    g.set_xlim(xlim[0], xlim[1])
+    g.set_title(filename_save, fontsize = 20)
+    plt.axvline(x= -np.log10(0.01), ls='--', lw=2, color = 'k')
+    if save_directory is not None:
+        delve_benchmark.pp.make_directory(save_directory)
+        if filename_save is not None:
+            plt.savefig(os.path.join(save_directory, f'{filename_save}_GO.pdf'), bbox_inches = 'tight')
+        else:
+            plt.savefig(os.path.join(f'G0.pdf'), bbox_inches = 'tight')
+    plt.show()
