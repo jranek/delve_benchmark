@@ -116,6 +116,8 @@ def hotspot_fs(adata = None,
             k: int  = 10,
             n_pcs: int = 50,
             random_state: int = 0,
+            model = 'danb', 
+            layer_key = None, #counts
             **args):
     """Ranks features using hotspot: https://www.sciencedirect.com/science/article/pii/S2405471221001149
     Parameters
@@ -124,20 +126,28 @@ def hotspot_fs(adata = None,
     k: int (default = 10)
         number of nearest neighbors for between cell affinity kNN graph construction
     n_pcs: int (default = None)
-        number of principal components to compute pairwise Euclidean distances for between-cell affinity graph construction. If None, uses adata.X
+        number of principal components to compute pairwise Euclidean distances for between-cell affinity graph construction.
+    random_state: int 
+        random seed
+    model: str (default = 'danb')
+        distribution model
+    layer_key: str (defualt = None)
+        string referring to the layers key for count data
     ----------
     Returns
     predicted_features: pd.DataFrame
         dataframe containing ranked features following feature selection (dimensions = features x 1)
     -------
     """
-    X, _, _ = delve_benchmark.pp.parse_input(adata)
-    adata.layers['data'] = X.copy()
     sc.tl.pca(adata, n_comps = n_pcs, svd_solver = 'arpack', random_state = random_state)
 
+    if layer_key == None:
+        adata.layers['data'] = adata.X.copy()
+        layer_key = 'data'
+
     hs = hotspot.Hotspot(adata,
-                        layer_key="data",
-                        model='danb',
+                        model=model,
+                        layer_key=layer_key,
                         latent_obsm_key='X_pca')
 
     hs.create_knn_graph(weighted_graph = True, n_neighbors = k)
@@ -331,7 +341,7 @@ def neighborhood_variance_fs(adata = None,
     ----------
     """
     X, feature_names, _ = delve_benchmark.pp.parse_input(adata)
-    nvr, nvr_idx = neighborhood_variance_main(X = X, feature_names = feature_names)
+    nvr, nvr_idx = neighborhood_variance_main(X = X)
 
     predicted_features = pd.DataFrame(nvr[nvr_idx], index = feature_names[nvr_idx], columns = ['neighborhood_variance'])
     predicted_features = predicted_features.sort_values('neighborhood_variance', ascending = False)

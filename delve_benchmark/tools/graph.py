@@ -29,7 +29,6 @@ def get_igraph(W = None,
     g.add_vertices(np.shape(W)[0])
     g.add_edges(list(zip(sources, targets)))
     g.es['weight'] = weights  
-    
     return g
 
 def heat_kernel(dist = None,
@@ -94,5 +93,4 @@ def construct_affinity(X = None,
     # make symmetric
     bigger = W.transpose() > W
     W = W - W.multiply(bigger) + W.transpose().multiply(bigger)
-
     return W

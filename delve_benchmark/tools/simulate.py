@@ -10,6 +10,13 @@ from sklearn.neighbors import KNeighborsClassifier
 from sklearn.model_selection import StratifiedKFold
 from sklearn.metrics import accuracy_score
 from scipy.stats import kendalltau
+import rpy2.robjects as robjects
+from rpy2.robjects import pandas2ri
+import anndata2ri
+import gc 
+from sklearn.model_selection import train_test_split
+pandas2ri.activate()
+anndata2ri.activate()
 
 def splatter_sim(cells_per_path = 250,
                 n_paths = 6,
@@ -109,6 +116,8 @@ def splatter_sim(cells_per_path = 250,
     if dropout_type == 'sim_binom':
          adata = sim_binom(adata = adata, dropout_prob = dropout_prob, random_state = random_state)
 
+    adata.layers['raw'] = adata.X.copy()
+
     sc.pp.normalize_total(adata)
     sc.pp.log1p(adata)
     return adata
@@ -161,15 +170,15 @@ def run_splatter(cells_per_path = 250,
                         'neighborhood_variance_fs':{},
                         'mcfs_fs':{'n_selected_features':max(k_sweep), 'n_clusters':n_paths, 'k': k},
                         'scmer_fs':{'k': k, 'n_pcs': n_pcs},
-                        'hotspot_fs':{'k': k, 'n_pcs': n_pcs},
+                        'hotspot_fs':{'k': k, 'n_pcs': n_pcs, 'model': 'danb', 'layer_key' : 'raw'},
                         'variance_score':{},
                         'all_features':{},
                         'hvg':{'n_top_genes':max(k_sweep), 'log':False},
-                        'delve_fs_trial0':{'num_subsamples': num_subsamples, 'n_clusters': n_clusters, 'k': k, 'random_state': 0, 'n_random_state': n_random_state},
-                        'delve_fs_trial1':{'num_subsamples': num_subsamples, 'n_clusters': n_clusters, 'k': k, 'random_state': 42, 'n_random_state': n_random_state},
-                        'delve_fs_trial2':{'num_subsamples': num_subsamples, 'n_clusters': n_clusters, 'k': k, 'random_state': 35, 'n_random_state': n_random_state},
-                        'delve_fs_trial3':{'num_subsamples': num_subsamples, 'n_clusters': n_clusters, 'k': k, 'random_state': 2048, 'n_random_state': n_random_state},
-                        'delve_fs_trial4':{'num_subsamples': num_subsamples, 'n_clusters': n_clusters, 'k': k, 'random_state': 3059, 'n_random_state': n_random_state},
+                        'run_delve_fs_trial0':{'num_subsamples': num_subsamples, 'n_clusters': n_clusters, 'k': k, 'random_state': 0, 'n_random_state': n_random_state},
+                        'run_delve_fs_trial1':{'num_subsamples': num_subsamples, 'n_clusters': n_clusters, 'k': k, 'random_state': 42, 'n_random_state': n_random_state},
+                        'run_delve_fs_trial2':{'num_subsamples': num_subsamples, 'n_clusters': n_clusters, 'k': k, 'random_state': 35, 'n_random_state': n_random_state},
+                        'run_delve_fs_trial3':{'num_subsamples': num_subsamples, 'n_clusters': n_clusters, 'k': k, 'random_state': 2048, 'n_random_state': n_random_state},
+                        'run_delve_fs_trial4':{'num_subsamples': num_subsamples, 'n_clusters': n_clusters, 'k': k, 'random_state': 3059, 'n_random_state': n_random_state},
                         'seed_features_trial0':{'num_subsamples': num_subsamples, 'n_clusters': n_clusters, 'k': k, 'random_state': 0, 'n_random_state': n_random_state},
                         'seed_features_trial1':{'num_subsamples': num_subsamples, 'n_clusters': n_clusters, 'k': k, 'random_state': 42, 'n_random_state': n_random_state},
                         'seed_features_trial2':{'num_subsamples': num_subsamples, 'n_clusters': n_clusters, 'k': k, 'random_state': 35, 'n_random_state': n_random_state},
@@ -214,7 +223,7 @@ def run_splatter(cells_per_path = 250,
 
                 # perform feature selection
                 try:
-                    predicted_features = fs_method(adata = adata[train_ix, :], X = X_train, feature_names = adata.var_names, n_jobs = -1, **fs_method_params)
+                    predicted_features = fs_method(adata = adata[train_ix, :], n_jobs = -1, **fs_method_params)
 
                     if type(predicted_features) is not pd.core.frame.DataFrame:
                         predicted_features = pd.DataFrame(index = predicted_features) 
@@ -358,3 +367,236 @@ def sim_binom(adata = None,
     scale = np.exp(-dropout_prob*(X_log.mean(0))**2)
     adata.X = np.random.binomial(n = adata.X.astype('int'), p = scale, size = adata.shape)
     return adata
+
+def symsim_sim(ncells_total = 10000,
+                ngenes = 20000,
+                ce = 0.01,
+                Sigma = 0.6,
+                random_state = 0):
+    """Simulates a single-cell RNA sequencing trajectory using SymSim: https://www.nature.com/articles/s41467-019-10500-w
+    ----------
+    Returns
+    adata: anndata.AnnData
+        annotated data object containing simulated single-cell RNA sequecing data (dimensions = cells x features)
+    ----------
+    """ 
+    r = robjects.r
+    r['source'](os.path.join('delve_benchmark', 'tools', 'simulate.r'))
+    symsim_generate_r = robjects.globalenv['symsim_generate']
+    result_r = symsim_generate_r(ncells_total, ngenes, ce, Sigma, random_state)
+    X = result_r[0]
+    group = result_r[1]
+    step = result_r[2]
+    metadata = pd.concat([group.astype('str'), step.astype('float')], axis = 1)
+    metadata.columns = ['group', 'step']
+    adata = anndata.AnnData(pd.DataFrame(X))
+    adata.layers['raw'] = X.copy()
+    adata.obs = metadata.copy()
+    sc.pp.normalize_total(adata)
+    sc.pp.log1p(adata)
+    return adata
+
+def run_symsim_sim(ncells_total = 10000,
+                    ngenes = 20000,
+                    random_state = 0,
+                    labels_key = 'group',
+                    Sigma = 0.6,
+                    k_sweep = [50, 100, 250, 500, 1000, 2000],
+                    ce_list = [0.01, 0.02, 0.03, 0.04, 0.05], 
+                    save_directory = None,
+                    **args):
+    """Performs evaluation of simulated single-cell RNA sequencing data across feature selection methods
+            - single-cell RNA sequencing datasets are simulated using SymSim with defined trajectory structure
+            - feature selection is performed and evaluated according to: kNN classification accuracy, correlation of estimated pseudotime to ground truth 
+    ----------
+    """ 
+    np.random.seed(random_state)
+    k = 10
+    n_pcs = 50
+    num_subsamples = 1000
+    n_clusters = 5
+    n_random_state = 10
+    acc_scores = []
+    kt_dpt_scores = []
+    kt_sling_scores = []
+    for trial in range(0, len(ce_list)):#, 0.02, 0.03, 0.04, 0.05]:
+        ce = ce_list[trial]
+        acc_df = pd.DataFrame()
+        kt_dpt_df = pd.DataFrame()
+        kt_sling_df = pd.DataFrame()
+        adata = delve_benchmark.tl.symsim_sim(ncells_total = ncells_total, ngenes = ngenes, random_state = random_state, ce = ce, Sigma = Sigma)
+        fs_methods = {'random_forest':{'n_splits': 3, 'labels_key': labels_key},
+                        'laplacian_score_fs':{'k': k, 'n_pcs': n_pcs},
+                        'neighborhood_variance_fs':{'n_pcs': n_pcs},
+                        'mcfs_fs':{'n_selected_features':max(k_sweep), 'n_clusters':6, 'k': k, 'n_pcs': n_pcs},
+                        'scmer_fs':{'k': k, 'n_pcs': n_pcs},
+                        'hotspot_fs':{'k': k, 'n_pcs': n_pcs, 'model': 'danb', 'layer_key' : 'raw'},
+                        'variance_score':{},
+                        'all_features':{},
+                        'hvg':{'n_top_genes':max(k_sweep), 'log':False},
+                        'run_delve_fs_trial0':{'num_subsamples': num_subsamples, 'n_clusters': n_clusters, 'k': k, 'random_state': 0, 'n_random_state': n_random_state, 'n_pcs': n_pcs, 'null_iterations': 100},
+                        'run_delve_fs_trial1':{'num_subsamples': num_subsamples, 'n_clusters': n_clusters, 'k': k, 'random_state': 42, 'n_random_state': n_random_state, 'n_pcs': n_pcs, 'null_iterations': 100},
+                        'run_delve_fs_trial2':{'num_subsamples': num_subsamples, 'n_clusters': n_clusters, 'k': k, 'random_state': 35, 'n_random_state': n_random_state, 'n_pcs': n_pcs, 'null_iterations': 100},
+                        'run_delve_fs_trial3':{'num_subsamples': num_subsamples, 'n_clusters': n_clusters, 'k': k, 'random_state': 2048, 'n_random_state': n_random_state, 'n_pcs': n_pcs, 'null_iterations': 100},
+                        'run_delve_fs_trial4':{'num_subsamples': num_subsamples, 'n_clusters': n_clusters, 'k': k, 'random_state': 3059, 'n_random_state': n_random_state, 'n_pcs': n_pcs, 'null_iterations': 100},
+                        'seed_features_trial0':{'num_subsamples': num_subsamples, 'n_clusters': n_clusters, 'k': k, 'random_state': 0, 'n_random_state': n_random_state, 'n_pcs': n_pcs, 'null_iterations': 100},
+                        'random_features_trial0':{'random_state': 0},
+                        'random_features_trial1':{'random_state': 42},
+                        'random_features_trial2':{'random_state': 35},
+                        'random_features_trial3':{'random_state': 2048},
+                        'random_features_trial4':{'random_state': 3059}
+                        }
+        y = list(adata.obs[labels_key].values)
+        X = adata.X.copy()
+        for key, value in fs_methods.items():
+            fs_method = key
+            id = key
+            if 'trial' in key:
+                fs_method = key.split('_trial')[0]
+            fs_method = eval('delve_benchmark.tl.' + fs_method)
+            fs_method_params = value.copy()
+            print(fs_method)
+            print(fs_method_params)
+            # perform feature selection
+            try:
+                predicted_features = fs_method(adata = adata, n_jobs = -1, **fs_method_params)
+                if type(predicted_features) is not pd.core.frame.DataFrame:
+                    predicted_features = pd.DataFrame(index = predicted_features) 
+                if len(predicted_features) == 0: #if no predicted features then return nans
+                    acc_df = pd.concat([acc_df, pd.DataFrame(len(k_sweep)*[np.nan], columns = [id], index = k_sweep)], axis = 1)
+                    kt_dpt_df = pd.concat([kt_dpt_df, pd.DataFrame(len(k_sweep)*[np.nan], columns = [id], index = k_sweep)], axis = 1)
+                    kt_sling_df = pd.concat([kt_sling_df, pd.DataFrame(len(k_sweep)*[np.nan], columns = [id], index = k_sweep)], axis = 1)
+                else: #evaluate p@k
+                    acc_arr = []
+                    kt_dpt = []
+                    kt_slingshot = []
+                    for feats_select in k_sweep:
+                        #select top features (except for all features)
+                        if len(predicted_features.index) < feats_select:
+                            acc_arr.append(np.nan)
+                            kt_dpt.append(np.nan)
+                            kt_slingshot.append(np.nan)
+                        else:
+                            if fs_method.__name__ == 'all_features':
+                                predicted_features_run = np.asarray(predicted_features.index)
+                            else:
+                                predicted_features_run = np.asarray(predicted_features.index[:feats_select])
+                            #knn classification acc
+                            X_train, X_test, y_train, y_test = train_test_split(adata.X.copy(), y, test_size=0.3, random_state=42)
+                            X_train = X_train[:, np.isin(adata.var_names, predicted_features_run)] 
+                            X_test = X_test[:, np.isin(adata.var_names,  predicted_features_run)]
+                            classifier = KNeighborsClassifier(n_neighbors = 10)
+                            classifier.fit(X_train, y_train)
+                            y_pred = classifier.predict(X_test)
+                            acc_arr.append(accuracy_score(y_true = y_test, y_pred = y_pred))
+                            kt_dpt_ = pd.DataFrame()
+                            kt_slingshot_ = []
+                            for group in np.unique(adata.obs['group']):
+                                adata_pseudo = adata[np.where(adata.obs['group'] == group)[0], np.isin(adata.var_names, predicted_features_run)].copy()
+                                pct_min = np.percentile(adata_pseudo.obs['step'], 10)
+                                kt_dpt_arr = []
+                                for root_cell in np.random.choice(np.where(adata_pseudo.obs['step'].values <= pct_min)[0], 10, replace = False):
+                                    adata_pseudo, pseudotime = delve_benchmark.tl.perform_dpt(adata = adata_pseudo, k = 10, n_pcs = 0, n_dcs = 20, root = root_cell)
+                                    kt_corr, _ = kendalltau(pseudotime, adata_pseudo.obs['step'].values)
+                                    kt_dpt_arr.append(kt_corr)
+                                kt_dpt_ = pd.concat([pd.DataFrame(kt_dpt_arr), kt_dpt_], axis = 1)
+                                adata_pseudo, pseudotime = delve_benchmark.tl.perform_slingshot(adata = adata_pseudo, k = 30, t = 10, cluster_labels_key = 'group', root_cluster = group)
+                                kt_corr, _ = kendalltau(pseudotime, adata_pseudo.obs['step'].values)
+                                kt_slingshot_.append(kt_corr)
+                                del adata_pseudo
+                            kt_dpt.append(kt_dpt_.mean(0).mean(0))
+                            kt_slingshot.append(np.mean(kt_slingshot_))
+                            if fs_method.__name__ == 'all_features':
+                                print('all features')
+                                acc_df = pd.concat([acc_df, pd.DataFrame(len(k_sweep)*acc_arr, columns = [id], index = k_sweep)], axis = 1)
+                                kt_dpt_df = pd.concat([kt_dpt_df, pd.DataFrame(len(k_sweep)*kt_dpt, columns = [id], index = k_sweep)], axis = 1)
+                                kt_sling_df = pd.concat([kt_sling_df, pd.DataFrame(len(k_sweep)*kt_slingshot, columns = [id], index = k_sweep)], axis = 1)                                
+                                break
+                    if fs_method.__name__ != 'all_features':
+                        acc_df = pd.concat([acc_df, pd.DataFrame(acc_arr, columns = [id], index = k_sweep)], axis = 1)
+                        kt_dpt_df = pd.concat([kt_dpt_df, pd.DataFrame(kt_dpt, columns = [id], index = k_sweep)], axis = 1)
+                        kt_sling_df = pd.concat([kt_sling_df, pd.DataFrame(kt_slingshot, columns = [id], index = k_sweep)], axis = 1)
+            except ValueError as e:
+                print(e)
+                acc_df = pd.concat([acc_df, pd.DataFrame(len(k_sweep)*[np.nan], columns = [id], index = k_sweep)], axis = 1)
+                kt_dpt_df = pd.concat([kt_dpt_df, pd.DataFrame(len(k_sweep)*[np.nan], columns = [id], index = k_sweep)], axis = 1)
+                kt_sling_df = pd.concat([kt_sling_df, pd.DataFrame(len(k_sweep)*[np.nan], columns = [id], index = k_sweep)], axis = 1)
+                continue
+
+        acc_scores.append(acc_df)
+        kt_dpt_scores.append(kt_dpt_df)
+        kt_sling_scores.append(kt_sling_df)
+
+        pd.concat(acc_scores, axis = 0, keys = np.arange(0, trial+1)).to_csv(os.path.join(save_directory, 'acc.csv'))
+        pd.concat(kt_dpt_scores, axis = 0, keys = np.arange(0, trial+1)).to_csv(os.path.join(save_directory, 'kt_dpt.csv'))
+        pd.concat(kt_sling_scores, axis = 0, keys = np.arange(0, trial+1)).to_csv(os.path.join(save_directory, 'kt_sling.csv'))
+        del adata
+        gc.collect()
+    return acc_scores, kt_dpt_scores, kt_sling_scores
+
+def run_symsim_param(ncells_total = 10000,
+                        ngenes = 20000,
+                        ce = 0.01, 
+                        Sigma = 0.6,
+                        n_trials = 10,
+                        labels_key = 'group',
+                        fs_method_params = None,
+                        feats_select = 1000,
+                        k_sweep = None):
+    #evaluates DELVE hyperparameter sensitivity on SymSim simulated single-cell RNA sequencing data
+    adata = delve_benchmark.tl.symsim_sim(ncells_total = ncells_total, ngenes = ngenes, random_state = 0, ce = ce, Sigma = Sigma)
+    y = list(adata.obs[labels_key].values)
+    X = adata.X.copy()
+    acc_arr = []
+    kt_dpt = []
+    kt_slingshot = []
+    for trial in range(0, n_trials):
+        fs_method_params['random_state'] = np.random.randint(0, 86542)
+        print(fs_method_params)
+        # perform feature selection
+        try:
+            predicted_features = delve_benchmark.tl.run_delve_fs(adata = adata, n_jobs = -1, **fs_method_params)
+            if type(predicted_features) is not pd.core.frame.DataFrame:
+                predicted_features = pd.DataFrame(index = predicted_features) 
+            if len(predicted_features) == 0: 
+                acc_df = pd.concat([acc_df, pd.DataFrame(len(k_sweep)*[np.nan], columns = [id], index = k_sweep)], axis = 1)
+                kt_dpt_df = pd.concat([kt_dpt_df, pd.DataFrame(len(k_sweep)*[np.nan], columns = [id], index = k_sweep)], axis = 1)
+                kt_sling_df = pd.concat([kt_sling_df, pd.DataFrame(len(k_sweep)*[np.nan], columns = [id], index = k_sweep)], axis = 1)
+            else: 
+                if len(predicted_features.index) < feats_select:
+                    acc_arr.append(np.nan)
+                    kt_dpt.append(np.nan)
+                    kt_slingshot.append(np.nan)
+                else:
+                    predicted_features_run = np.asarray(predicted_features.index[:feats_select])
+                    X_train, X_test, y_train, y_test = train_test_split(adata.X.copy(), y, test_size=0.3, random_state=42)
+                    X_train = X_train[:, np.isin(adata.var_names, predicted_features_run)] 
+                    X_test = X_test[:, np.isin(adata.var_names,  predicted_features_run)]
+                    classifier = KNeighborsClassifier(n_neighbors = 10) #knn classification
+                    classifier.fit(X_train, y_train)
+                    y_pred = classifier.predict(X_test)
+                    acc_arr.append(accuracy_score(y_true = y_test, y_pred = y_pred))
+                    kt_dpt_ = pd.DataFrame()
+                    kt_slingshot_ = [] #ti correlation
+                    for group in np.unique(adata.obs['group']):
+                        adata_pseudo = adata[np.where(adata.obs['group'] == group)[0], np.isin(adata.var_names, predicted_features_run)].copy()
+                        pct_min = np.percentile(adata_pseudo.obs['step'], 10)
+                        kt_dpt_arr = []
+                        for root_cell in np.random.choice(np.where(adata_pseudo.obs['step'].values <= pct_min)[0], 10, replace = False):
+                            adata_pseudo, pseudotime = delve_benchmark.tl.perform_dpt(adata = adata_pseudo, k = 10, n_pcs = 0, n_dcs = 20, root = root_cell)
+                            kt_corr, _ = kendalltau(pseudotime, adata_pseudo.obs['step'].values)
+                            kt_dpt_arr.append(kt_corr)
+                        kt_dpt_ = pd.concat([pd.DataFrame(kt_dpt_arr), kt_dpt_], axis = 1)
+                        adata_pseudo, pseudotime = delve_benchmark.tl.perform_slingshot(adata = adata_pseudo, k = 30, t = 10, cluster_labels_key = 'group', root_cluster = group)
+                        kt_corr, _ = kendalltau(pseudotime, adata_pseudo.obs['step'].values)
+                        kt_slingshot_.append(kt_corr)
+                        del adata_pseudo
+                    kt_dpt.append(kt_dpt_.mean(0).mean(0))
+                    kt_slingshot.append(np.mean(kt_slingshot_))
+        except ValueError as e:
+            print(e)
+            continue
+    acc_df = pd.DataFrame(acc_arr)
+    kt_dpt_df = pd.DataFrame(kt_dpt)
+    kt_sling_df = pd.DataFrame(kt_slingshot)
+    return acc_df, kt_dpt_df, kt_sling_df

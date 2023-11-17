@@ -49,10 +49,10 @@ class fs(BaseEstimator):
                 delve_benchmark.tl.random_forest example: {'n_splits': 10, 'labels_key': 'phase'}
                 delve_benchmark.tl.laplacian_score_fs example: {'k': 10}
                 delve_benchmark.tl.neighborhood_variance_fs example: None
-                delve_benchmark.tl.mcfs_fs example: {'k': 10, 'n_selected_features': 30, 'n_clusters': 4}
+                delve_benchmark.tl.mcfs_fs example: {'k': 10, 'n_selected_features': 2000, 'n_clusters': 4}
                 delve_benchmark.tl.scmer_fs example: {'k': 10, 'n_pcs': 50}
-                delve_benchmark.tl.hotspot_fs example: {'k': 10, 'n_pcs': 50}
-                delve_benchmark.tl.hvg example: {'n_top_genes': 30, 'log': True}
+                delve_benchmark.tl.hotspot_fs example: {'k': 10, 'n_pcs': 50, 'model': 'danb', 'layer_key': 'raw'}
+                delve_benchmark.tl.hvg example: {'n_top_genes': 2000, 'log': True}
                 delve_benchmark.tl.variance_score example: None
                 delve_benchmark.tl.seed_features example: {'num_subsamples': 1000, 'n_clusters': 5, 'k': 10, 'n_random_state': 10}
                 delve_benchmark.tl.all_features example: None
@@ -111,7 +111,7 @@ class fs(BaseEstimator):
             predicted_features, scores = fs.evaluate_select()
             
         3. Example clustering evaluation using hotspot:
-            fs = delve_benchmark.tl.fs(adata = adata, X = adata.X, feature_names = adata.var_names, fs_method = delve_benchmark.tl.hotspot_fs, fs_method_params = {'k': 10, 'n_pcs': 50},
+            fs = delve_benchmark.tl.fs(adata = adata, X = adata.X, feature_names = adata.var_names, fs_method = delve_benchmark.tl.hotspot_fs, fs_method_params = {'k': 10, 'n_pcs': 50, 'model': 'none'},
                                         eval_method = delve_benchmark.tl.cluster, eval_method_params =  {'n_clusters': 4, 'n_sweep': 25}, labels_key = 'phase', feature_threshold = 30)
             predicted_features, scores = fs.evaluate_select()
         ----------
@@ -119,8 +119,6 @@ class fs(BaseEstimator):
     def __init__(
         self,
         adata = None,
-        X = None,
-        feature_names = None,
         predicted_features = None,
         reference_features = None,
         feature_threshold = 30,
@@ -135,6 +133,8 @@ class fs(BaseEstimator):
         n_jobs = -1,
         **fs_kwargs
     ):
+        
+        X, feature_names, _ = delve_benchmark.pp.parse_input(adata)
         
         self.adata = adata
         self.X = X
@@ -185,7 +185,7 @@ class fs(BaseEstimator):
                 else:
                     self.predicted_features = np.asarray(predicted_features.index)
 
-            if (self.reference_features is None and self.eval_method.__name__ != 'cluster'):
+            if (self.reference_features =='compute'):
                 # if evaluation requires comparison to the random forest classifier, then obtain random forest reference features
                 sys.stdout.write('obtaining reference features using random forest'+'\n')
 
