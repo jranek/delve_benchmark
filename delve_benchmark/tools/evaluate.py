@@ -17,6 +17,14 @@ from sklearn.preprocessing import LabelEncoder
 from sklearn.svm import SVC, SVR
 import gseapy as gp
 import requests
+import rpy2.robjects as robjects
+from rpy2.robjects import pandas2ri
+import anndata2ri
+import phate
+import os
+import delve_benchmark
+pandas2ri.activate()
+anndata2ri.activate()
 
 def pak(predicted_features = None,
         reference_features = None,
@@ -144,15 +152,16 @@ def cluster(adata = None,
 def perform_dpt(adata = None,
                 k: int = 10,
                 n_dcs: int = 20,
-                n_pcs: int = 0, 
-                root: int = None):
+                n_pcs: int = 50, 
+                root: int = None,
+                **args):
     """Performs trajectory inference using diffusion pseudotime: https://www.nature.com/articles/nmeth.3971
     Parameters
         adata: anndata.AnnData (default = None)
             annotated data object containing single-cell data (dimensions = cells x features)
         k: int (default = 10)
             number of nearest neighbors for kNN graph construction
-        n_pcs: int (default = 0)
+        n_pcs: int (default = 50)
             number of principal components for computing pairwise Euclidean distances in kNN graph construction. If 0, will use adata.X
         n_dcs: int (default = 20)
             integer referring to the number of diffusion map components
@@ -170,42 +179,88 @@ def perform_dpt(adata = None,
     sc.tl.diffmap(adata, n_comps = n_dcs)
     adata.uns['iroot'] = root
     sc.tl.dpt(adata, n_dcs = n_dcs)
-    pseudotime = adata.obs['dpt_pseudotime'].values
-
+    pseudotime = np.asarray(adata.obs['dpt_pseudotime'].values).flatten()
     return adata, pseudotime
 
-def compute_de(adata,
-            k: int = 10,
-            n_pcs: int = 0,
-            n_dcs: int = 20,
-            root: int = None,
-            family: str = 'neg-binomial'):
+def perform_slingshot(adata = None,
+                        cluster_labels_key: str = None,
+                        root_cluster: str = None,
+                        k = 30,
+                        t = 10,
+                        random_state = 0,
+                        **args):
+    """performs trajectory inference using slingshot: https://bmcgenomics.biomedcentral.com/articles/10.1186/s12864-018-4772-0
+​
+    Parameters
+    adata: AnnData
+        annotated data object
+    cluster_labels_key: str (default = None)
+        string referring to the cell population labels for inference
+    root_cluster: str (default = None)
+        string referring to the starting root population
+    k: int (default = 30): 
+        number of nearest neighbors
+    t: int (default = 10)
+        power of diffusion operator in PHATE embedding computation
+    random_state: int (default = 0)
+        random seed
+    ----------
+​
+    Returns
+​    adata: anndata.AnnData (default = None)
+        annotated data object containing single-cell data (dimensions = cells x features)
+    avg_pseudotime: np.ndarray
+        array containing pseudotime values for all cells averaged over all estimated trajectories (dimensions = cells x 1)
+    ----------
+    """
+    labels = adata.obs[cluster_labels_key].copy()
+    op = phate.PHATE(knn = k, t = t, random_state = random_state)
+    X_phate = op.fit_transform(adata)
+    adata.obsm['X_phate'] = X_phate.copy()
+    embedding = pd.DataFrame(X_phate, index = adata.obs_names)
+    
+    r = robjects.r
+    r['source'](os.path.join('delve_benchmark', 'tools', 'evaluate.r'))
+    slingshot_r = robjects.globalenv['run_slingshot']
+    result_r = slingshot_r(pandas2ri.py2rpy(embedding), pandas2ri.py2rpy(labels), root_cluster)
+    lineages = result_r[0]
+    pseudotime = result_r[1]
+    try:
+        avg_pseudotime = np.nanmean([pseudotime[:, i] for i in range(0, np.shape(pseudotime)[1])], axis = 0)
+    except:
+        avg_pseudotime = [np.nan]*len(adata.obs_names)
+
+    adata.obs['pseduotime'] = avg_pseudotime
+    return adata, avg_pseudotime
+
+def compute_de(adata = None,
+                de_method = None,
+                family: str = 'neg-binomial', 
+                de_params: dict = {'k': 10, 'n_pcs': 0, 'n_dcs': 20}):
     """Performs trajectory differential expression analysis
     Parameters
         adata: anndata.AnnData
             annotated data object containing single-cell data (dimensions = cells x features)
-        k: int (default = 10)
-            number of nearest neighbors for kNN graph construction
-        n_pcs: int (default = 0)
-            number of principal components for computing pairwise Euclidean distances in kNN graph construction. If 0, will use adata.X
-        n_dcs: int (default = 20)
-            integer referring to the number of diffusion map components
-        root: int (default = None)
-            integer referring to root cell to impose directionality
-        family: str (default = 'neg_binomial') 
-            distribution family to choose, default is negative binomial
+        de_method: delve_benchmark function for performing trajectory inference (defualt = None)
+            delve_benchmark.tl.perform_dpt or delve_benchmark.tl.perform_slingshot
+        family: str (defualt = 'neg_binomial')
+            distirbution family
+        de_params: dict 
+            dictionary containing trajectory inference hyperparaneters 
     ----------
     Returns
         de_df: pd.core.Frame.DataFrame
             dataframe containing features and p-values
     ----------
     """  
-    adata_run = adata.copy()
-    adata_run, _ = perform_dpt(adata = adata_run, k = k, n_dcs = n_dcs, n_pcs = n_pcs, root = root)
-    de_dict = de_analy(adata = adata_run, pse_t = pd.DataFrame(adata_run.obs['dpt_pseudotime']), distri = family)
+    if isinstance(adata.X, scipy.sparse._csr.csr_matrix):
+        adata.X = adata.X.toarray()
+    
+    adata, pseudotime = de_method(adata = adata, **de_params)
+    de_dict = de_analy(adata = adata, pse_t = pd.DataFrame(pseudotime, index = adata.obs_names), distri = family)
     de_df = _de_dict2df(de_dict)
 
-    return de_df
+    return adata, de_df
 
 def GAM_pt(pse_t, expr, smooth = 'BSplines', df = 5, degree = 3, family = sm.families.NegativeBinomial(alpha = 1.0)):
     """
@@ -372,7 +427,7 @@ def gene_ontology(gene_list = None,
         gene_sets: list (default = None)
             list of gene sets to consider
         organism: str (default = 'mouse')
-            organism for gene sets
+            organism for gene ontology
     ----------
     Returns
         go_df: pd.core.Frame.DataFrame
@@ -570,10 +625,11 @@ def compute_kt_labels(adata_objs = None,
 
     return kt_corr_df
 
-def compute_string_interaction(feats):
+def compute_string_interaction(feats, species = '10090'):
     """Computes protein-protein interaction scores using experimental edges from STRING database: https://string-db.org/
     Parameters
         feats: list of features
+        species: code for species
     ----------
     Returns
         interactions: pd.core.Frame.DataFrame
@@ -581,20 +637,28 @@ def compute_string_interaction(feats):
     ----------
     """  
     proteins = '%0d'.join(feats)
-    url = 'https://string-db.org/api/tsv/network?identifiers=' + proteins + '&species=10090' + '&network_flavor=evidence'
-    r = requests.get(url)
+    url = 'https://string-db.org/api/tsv/network'
+
+    # Parameters for the request
+    params = {
+        'identifiers': proteins,
+        'species': species,
+        'network_flavor': 'evidence',
+    }
+    # url = 'https://string-db.org/api/tsv/network?identifiers=' + proteins + '&species=10090' + '&network_flavor=evidence'
+    r = requests.post(url, data = params)
 
     lines = r.text.split('\n') # pull the text from the response object and split based on new lines
     data = [l.split('\t') for l in lines] # split each line into its components based on tabs
     # convert to dataframe using the first row as the column names; drop empty, final row
     df = pd.DataFrame(data[1:-1], columns = data[0]) 
     # dataframe with the preferred names of the two proteins and the score of the interaction
-    interactions = df[['preferredName_A', 'preferredName_B', 'escore']]
+    interactions = df[['preferredName_A', 'preferredName_B', 'escore']].copy()
     interactions.loc[:, 'escore'] =  pd.DataFrame(interactions.loc[:, 'escore']).astype(float)
 
     interactions = interactions[np.isin(interactions.loc[:, 'preferredName_A'].values, feats)]
     interactions = interactions[np.isin(interactions.loc[:, 'preferredName_B'].values, feats)]
-    return  interactions
+    return interactions
 
 def compute_string_degree(G):
     """Computes degree score from interaction scores from STRING
@@ -637,7 +701,8 @@ def compute_G(interactions):
 def permute_string(modules = None,
                     niterations: int = 1000,
                     colors = ['#B46CDA', '#78CE8B', '#FF8595', '#C9C9C9'],
-                    filename_save = None):
+                    species = '10090', 
+                    save_directory = None):
     """Performs permutation test of features within DELVE modules as compared to random assignment using STRING experimental association scores (see figure 5b)
     Parameters
     modules: pd.core.Frame.DataFrame (default = None)
@@ -646,7 +711,9 @@ def permute_string(modules = None,
         number of random permutations
     colors: list
         list containing hex codes of colors for each module in the histograms
-    filename_save: str (default = None)
+    species: str 
+        species key
+    save_directory: str (default = None)
         if specified, will save figure
     ----------
     Returns
@@ -664,11 +731,12 @@ def permute_string(modules = None,
     obs_df = []
     rand_df = []
     for g in range(0, len(groups)):
+        print(groups[g])
         selected_feats = list(modules.index[modules['cluster_id'] == groups[g]])
-        interactions = compute_string_interaction(selected_feats)
-        G = compute_G(interactions)
+        interactions = compute_string_interaction(selected_feats, species = species)
+        G = delve_benchmark.tl.compute_G(interactions)
         if len(G.edges()) !=0:
-            degree = compute_string_degree(G)
+            degree = delve_benchmark.tl.compute_string_degree(G)
         else:
             degree = np.nan
 
@@ -676,18 +744,19 @@ def permute_string(modules = None,
             
         null_degrees =[]
         for i in range(0, niterations):
+            print(i)
             rand_feats = list(np.random.choice(all_feats, len(selected_feats), replace=False))
-            interactions_null = compute_string_interaction(rand_feats)
-            G_null = compute_G(interactions_null)
+            interactions_null = compute_string_interaction(rand_feats, species = species)
+            G_null = delve_benchmark.tl.compute_G(interactions_null)
             if len(G_null.edges()) !=0:
-                degree_null = compute_string_degree(G_null)
+                degree_null = delve_benchmark.tl.compute_string_degree(G_null)
             else:
                 degree_null = np.nan
             null_degrees.append(degree_null)
 
         rand_df.append(pd.DataFrame([null_degrees], index = ['degree']).transpose())
 
-    _, axes = plt.subplots(1, 4, figsize = (4.5*4, 3.5), gridspec_kw={'hspace': 0.45, 'wspace': 0.3, 'bottom':0.15})
+    _, axes = plt.subplots(1, len(colors), figsize = (4.5*len(colors), 3.5), gridspec_kw={'hspace': 0.45, 'wspace': 0.3, 'bottom':0.15})
     sns.set_style('ticks')
     for i, ax in zip(range(0, len(obs_df)), axes.flat):
         obs = obs_df[i]['degree'].values
@@ -705,8 +774,9 @@ def permute_string(modules = None,
             ha='left', va='bottom',
             transform=ax.transAxes)
 
-    if filename_save is not None:
-        plt.savefig(filename_save+'_experimental_degree_DELVE.pdf', bbox_inches = 'tight')
+    if save_directory is not None:
+        delve_benchmark.pp.make_directory(save_directory)
+        plt.savefig(os.path.join(save_directory, 'experimental_degree_DELVE.pdf'), bbox_inches = 'tight')
 
     return obs_df, rand_df
 
