@@ -3,12 +3,9 @@ import matplotlib.pyplot as plt
 import phate
 import numpy as np
 import os
-import numpy as np
 import pandas as pd
 import phate
-import matplotlib.pyplot as plt
 import scanpy as sc
-import seaborn as sns
 from sklearn.preprocessing import MinMaxScaler
 import anndata
 import glob
@@ -363,7 +360,6 @@ def plot_metrics(all_results = None,
     if remove != False:
         axes[remove[0],remove[1]].set_axis_off() 
     plt.savefig(os.path.join(save_dir, filename_save+'.pdf'), bbox_inches="tight")
-
     
 def plot_simulated(directory, noise, noise_sweep, metric, trajectory_list, cnames_dict, colors_dict, m_order, savedir, filename_save, n_cells, n_genes):
     #plots simulated evaluation metrics
@@ -487,13 +483,13 @@ def plot_GO(gene_lists_df,
             gene_sets = ['GO_Biological_Process_2023'],
             organism = 'mouse',
             xlim = [0, 8],
-            n_select = 15, 
             color = None,
+            sig_cutoff = 0.05,
             save_directory = None,
             filename_save = None):
-
+    #plots gene ontology barplots for figures 5 and 6
     df_agg = pd.DataFrame()
-    for root_cell in gene_lists_df.columns: #only showing the first for visual representation
+    for root_cell in gene_lists_df.columns: 
         gene_lists = gene_lists_df.loc[:, root_cell][~gene_lists_df.loc[:, root_cell].isna()].sort_values(ascending = True).index.tolist()
         go =  delve_benchmark.tl.gene_ontology(gene_list = gene_lists, gene_sets = gene_sets, organism = organism)
 
@@ -502,17 +498,23 @@ def plot_GO(gene_lists_df,
         df['-log10(Adjusted P-value)'] = -np.log10(df['Adjusted P-value'])
         df['Term'] = [i.split(' (GO')[0] for i in df['Term']]
         df['root_cell'] = root_cell
-        df_agg = pd.concat([df[:n_select], df_agg], axis = 0)
+        df_agg = pd.concat([df[df['Adjusted P-value'] <= sig_cutoff], df_agg], axis = 0)
 
-    _, axes = plt.subplots(1, 1, figsize = (6,6), gridspec_kw={'hspace': 0.4, 'wspace': 0.3, 'bottom':0.15})
-    # print(df_agg.groupby('Term').mean().sort_values(by = '-log10(Adjusted P-value)', ascending=False))
+    ylen = len(df[df['Adjusted P-value'] <= sig_cutoff]) *2.5
+    ylen = ylen/6
+    if ylen > 8:
+        figsize = (6,6)
+    else:
+        figsize = (6, ylen)
+    _, axes = plt.subplots(1, 1, figsize = figsize, gridspec_kw={'hspace': 0.4, 'wspace': 0.3, 'bottom':0.15})
     g = sns.barplot(y = 'Term', x = '-log10(Adjusted P-value)', data = df_agg, color = color, alpha = 0.4, order = df_agg.groupby('Term').mean().sort_values(by = '-log10(Adjusted P-value)', ascending=False).index[:15], ci = 'sd', capsize = 0.3, errcolor = 'black', errwidth=1, axes = axes)
     g.tick_params(labelsize=16)
     g.set_xlabel('-log10(Adjusted P-value)', fontsize = 20)
     g.set_ylabel('GO term', fontsize = 20)
     g.set_xlim(xlim[0], xlim[1])
     g.set_title(filename_save, fontsize = 20)
-    plt.axvline(x= -np.log10(0.01), ls='--', lw=2, color = 'k')
+    plt.axvline(x= -np.log10(sig_cutoff), ls='--', lw=2, color = 'k', label = f'adjusted p-value < {sig_cutoff}')
+    plt.legend(loc = 'lower right', prop = {'size':12})
     if save_directory is not None:
         delve_benchmark.pp.make_directory(save_directory)
         if filename_save is not None:
