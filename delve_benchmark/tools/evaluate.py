@@ -742,7 +742,6 @@ def permute_string(modules = None,
             
         null_degrees =[]
         for i in range(0, niterations):
-            print(i)
             rand_feats = list(np.random.choice(all_feats, len(selected_feats), replace=False))
             interactions_null = compute_string_interaction(rand_feats, species = species)
             G_null = delve_benchmark.tl.compute_G(interactions_null)
