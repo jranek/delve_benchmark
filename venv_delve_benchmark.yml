@@ -7,13 +7,15 @@ dependencies:
     - anndata>=0.7.6
     - anndata2ri>=1.0.6
     - umap-learn=0.5.1
-    - pandas>=1.1.5
-    - numpy==1.22.4
+    - pandas=1.1.5
+    - numpy=1.22.4
     - scipy
-    - scikit-learn==0.23.2
+    - scikit-learn=0.23.2
     - python>=3.6
+    - ipython
+    - ipykernel
     - networkx>=2.5.1
-    - matplotlib-base>=3.4.2
+    - matplotlib-base=3.7.1
     - matplotlib-inline>=0.1.3
     - matplotlib-venn>=0.11.9
     - statsmodels>=0.12.2
@@ -34,3 +36,5 @@ dependencies:
         - scmer==0.1.0a3
         - gseapy==1.0.4
         - stringdb==0.1.5
+        - scvelo
+        - venn

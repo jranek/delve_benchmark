@@ -31,14 +31,27 @@ Once the environment is created, you can activate it by,
 conda activate venv_delve_benchmark
 ```
 
-If you'd like to evaluate feature selection methods using simulated data with [Splatter](https://genomebiology.biomedcentral.com/articles/10.1186/s13059-017-1305-0), you'll also need to install the R package. [Scprep](https://scprep.readthedocs.io/en/stable/_modules/scprep/run/splatter.html) has a nice wrapper function you can use. 
-```python
-import scprep
-scprep.run.splatter.install() #v1.18.2
+If you'd like to perform trajectory inference with [Slingshot](https://bmcgenomics.biomedcentral.com/articles/10.1186/s12864-018-4772-0), or evaluate feature selection methods using simulated data with [Splatter](https://genomebiology.biomedcentral.com/articles/10.1186/s13059-017-1305-0) or [SymSim](https://www.nature.com/articles/s41467-019-10500-w), you'll need to install the necessary R packages.
+
+```R
+if (!require("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+    
+install.packages("devtools")
+
+#slingshot v2.1.1
+BiocManager::install("slingshot")
+
+#splatter v1.18.2
+BiocManager::install("splatter")
+
+#symsim v0.0.0.9000
+library("devtools")
+devtools::install_github("YosefLab/SymSim")
 ```
 
 ## Data access
-You can download all of the preprocessed single-cell datasets (`.h5ad` files) from the [Zenodo](https://zenodo.org/record/7883604) repository.
+You can download all of the preprocessed single-cell datasets (`.h5ad` files) from the [Zenodo](https://zenodo.org/records/10105826) repository.
 
 ## Example usage
 We evaluated twelve feature selection methods on their ability to identify features that robustly preserve cell types and cell type transitions from single-cell data. You can compare feature selection methods using the `fs` class as follows. 
@@ -134,7 +147,7 @@ fs = delve_benchmark.tl.fs(adata = adata, fs_method = delve_benchmark.tl.run_del
 predicted_features, scores = fs.evaluate_select()
 
 # Example evaluating hotspot feature selection performance on clustering
-fs = delve_benchmark.tl.fs(adata = adata, fs_method = delve_benchmark.tl.hotspot_fs, fs_method_params = {'k': 10, 'n_pcs': 50},
+fs = delve_benchmark.tl.fs(adata = adata, fs_method = delve_benchmark.tl.hotspot_fs, fs_method_params = {'k': 10, 'n_pcs': 50, 'model': 'danb'},
                            eval_method = delve_benchmark.tl.cluster, eval_method_params =  {'n_clusters': 4, 'n_sweep': 25}, labels_key = 'phase', feature_threshold = 30)
 predicted_features, scores = fs.evaluate_select()
 ```
