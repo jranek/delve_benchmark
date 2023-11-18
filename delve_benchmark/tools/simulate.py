@@ -11,12 +11,8 @@ from sklearn.model_selection import StratifiedKFold
 from sklearn.metrics import accuracy_score
 from scipy.stats import kendalltau
 import rpy2.robjects as robjects
-from rpy2.robjects import pandas2ri
-import anndata2ri
 import gc 
 from sklearn.model_selection import train_test_split
-pandas2ri.activate()
-anndata2ri.activate()
 
 def splatter_sim(cells_per_path = 250,
                 n_paths = 6,

@@ -19,12 +19,10 @@ import gseapy as gp
 import requests
 import rpy2.robjects as robjects
 from rpy2.robjects import pandas2ri
-import anndata2ri
 import phate
 import os
 import delve_benchmark
 pandas2ri.activate()
-anndata2ri.activate()
 
 def pak(predicted_features = None,
         reference_features = None,
