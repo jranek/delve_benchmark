@@ -31,7 +31,7 @@ dependencies:
     - pip
     - pip:
         - sketchKH==0.1.0
-        - delve-fs==0.1.2
+        - delve-fs==0.1.3
         - hotspotsc==1.1.1
         - scmer==0.1.0a3
         - gseapy==1.0.4
