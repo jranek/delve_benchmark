@@ -51,7 +51,7 @@ devtools::install_github("YosefLab/SymSim")
 ```
 
 ## Data access
-You can download all of the preprocessed single-cell datasets (`.h5ad` files) from the [Zenodo](https://zenodo.org/records/10105826) repository.
+You can download all of the preprocessed single-cell datasets (`.h5ad` files) from the [Zenodo](https://zenodo.org/records/10534873) repository.
 
 ## Example usage
 We evaluated twelve feature selection methods on their ability to identify features that robustly preserve cell types and cell type transitions from single-cell data. You can compare feature selection methods using the `fs` class as follows. 
