@@ -7,9 +7,9 @@ import scanpy as sc
 import delve_benchmark
 import scmer
 from sklearn.preprocessing import LabelEncoder
-from sklearn.model_selection import StratifiedKFold, GridSearchCV
-from sklearn.metrics import accuracy_score
-from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import StratifiedKFold, GridSearchCV, KFold
+from sklearn.metrics import accuracy_score, mean_squared_error
+from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 from sklearn import linear_model
 from sklearn.neighbors import NearestNeighbors
 from sklearn.cluster import KMeans

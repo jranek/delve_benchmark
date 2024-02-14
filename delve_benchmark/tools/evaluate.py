@@ -737,8 +737,10 @@ def permute_string(modules = None,
             degree = delve_benchmark.tl.compute_string_degree(G)
         else:
             degree = np.nan
-
-        obs_df.append(pd.DataFrame([degree], index = ['degree']).transpose())
+        obs_df_ = pd.DataFrame([degree], index = ['degree']).transpose()
+        obs_df_['group'] = groups[g]
+        obs_df_['id'] = 'observed'
+        obs_df.append(obs_df_)
             
         null_degrees =[]
         for i in range(0, niterations):
@@ -750,8 +752,10 @@ def permute_string(modules = None,
             else:
                 degree_null = np.nan
             null_degrees.append(degree_null)
-
-        rand_df.append(pd.DataFrame([null_degrees], index = ['degree']).transpose())
+        rand_df_ = pd.DataFrame([null_degrees], index = ['degree']).transpose()
+        rand_df_['group'] = groups[g]
+        rand_df_['id'] = 'permuted'
+        rand_df.append(rand_df_)
 
     _, axes = plt.subplots(1, len(colors), figsize = (4.5*len(colors), 3.5), gridspec_kw={'hspace': 0.45, 'wspace': 0.3, 'bottom':0.15})
     sns.set_style('ticks')
